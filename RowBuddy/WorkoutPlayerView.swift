@@ -10,7 +10,7 @@ struct WorkoutPlayerView: View {
     @State private var totalIntervalDuration: Int = 30 // Simulate a 30 second interval for testing progress
 
     // MARK: - State Variables for SPM Pacing Circle (Hand removed)
-    @State private var targetSPM: Int = 22 // Example target SPM
+    @State private var targetSPM: Int = 24 // Example target SPM
     @State private var spmCycleProgress: Double = 0.0 // 0.0 = empty, 1.0 = full fill of one cycle
 
     // Timer to update SPM circle rotation for preview only
@@ -48,13 +48,13 @@ struct WorkoutPlayerView: View {
                     // MARK: - Main time interval circle
                     ZStack {
                         Circle()
-                            .stroke(Color.white.opacity(0.3), lineWidth: 100)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 100)
 
                         Circle()
                             .trim(from: 0.0, to: currentIntervalProgress)
                             .stroke(
                                 currentIntervalProgress > 0.1 ? Color.blue : Color.red,
-                                style: StrokeStyle(lineWidth: 80, lineCap: .round)
+                                style: StrokeStyle(lineWidth: 70, lineCap: .butt)
                             )
                             .rotationEffect(.degrees(-90))
                             .animation(.linear(duration: 0.1), value: currentIntervalProgress)
@@ -78,12 +78,12 @@ struct WorkoutPlayerView: View {
                         // Background (empty) circle - remains an outline
                         Circle()
                             .stroke(Color.white.opacity(0.3), lineWidth: 15)
-                            .background(Circle().fill(Color.orange.opacity(0.1))) // Inner background color behind the outline
+                            .background(Circle().fill(Color.yellow.opacity(0.1))) // Inner background color behind the outline
 
                         if targetSPM > 0 {
                             // The filling segment - now a filled circle that scales
                             Circle()
-                                .fill(Color.orange) // It's a solid circle
+                                .fill(Color.yellow) // It's a solid circle
                                 .scaleEffect(spmCycleProgress) // It scales from 0.0 to 1.0
                                 .animation(
                                     .linear(duration: (targetSPM > 0 ? 60.0 / Double(targetSPM) : 1.0)), // Animate over one stroke duration
