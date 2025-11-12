@@ -1,41 +1,85 @@
-//
-//  WorkoutSegmentConfigView.swift
-//  RowBuddy
-//
-//  Created by Will Olson on 7/15/25.
-//
-// WorkoutSegmentConfigView.swift
 import SwiftUI
 
 struct WorkoutSegmentConfigView: View {
-    // We'll pass a binding to a segment, so changes here update the parent list
     @Binding var segment: WorkoutSegment
-    var isNewSegment: Bool = false // To indicate if it's a new segment being added
-
+    var isNewSegment: Bool = false
+    
+    // Break duration into minutes and seconds for picker
+    private var durationMinutes: Int {
+        segment.durationSeconds / 60
+    }
+    
+    private var durationSeconds: Int {
+        segment.durationSeconds % 60
+    }
+    
     var body: some View {
-        Form { // Using Form for organized input fields
+        Form {
             Section(header: Text("Segment Details").font(.headline)) {
                 TextField("Period Name (e.g., Warm Up)", text: $segment.name)
-
-                HStack {
+                
+                // Duration Picker
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Duration:")
-                    Spacer()
-                    // Using a Stepper for easy second increment/decrement
-                    Stepper(value: $segment.durationSeconds, in: 10...3600, step: 10) {
-                        Text("\(segment.durationSeconds / 60):\(String(format: "%02d", segment.durationSeconds % 60)) min")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        // Minutes picker
+                        Picker("Minutes", selection: Binding(
+                            get: { durationMinutes },
+                            set: { newMinutes in
+                                segment.durationSeconds = (newMinutes * 60) + durationSeconds
+                            }
+                        )) {
+                            ForEach(0..<61) { minute in
+                                Text("\(minute)").tag(minute)
+                            }
+                        }
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(width: 80)
+                        .clipped()
+                        
+                        Text("min")
+                            .font(.headline)
+                        
+                        // Seconds picker
+                        Picker("Seconds", selection: Binding(
+                            get: { durationSeconds },
+                            set: { newSeconds in
+                                segment.durationSeconds = (durationMinutes * 60) + newSeconds
+                            }
+                        )) {
+                            ForEach(0..<60) { second in
+                                Text("\(second)").tag(second)
+                            }
+                        }
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(width: 80)
+                        .clipped()
+                        
+                        Text("sec")
+                            .font(.headline)
                     }
                 }
-
-                HStack {
+                
+                // SPM Picker
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Target SPM:")
-                    Spacer()
-                    Stepper(value: $segment.targetSPM, in: 10...40) {
-                        Text("\(segment.targetSPM) SPM")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Picker("Target SPM", selection: $segment.targetSPM) {
+                        ForEach(10...40, id: \.self) { spm in
+                            Text("\(spm) SPM").tag(spm)
+                        }
                     }
+                    .pickerStyle(WheelPickerStyle())
+                    .frame(height: 120)
                 }
-
+                
                 TextField("Goal Split (e.g., 1:55/500m)", text: $segment.goalSplit)
-
+                
                 TextField("Period Number (e.g., 2 of 5)", text: $segment.periodNumber)
             }
         }
@@ -45,11 +89,10 @@ struct WorkoutSegmentConfigView: View {
 }
 
 struct WorkoutSegmentConfigView_Previews: PreviewProvider {
-    // For previewing, we need a State variable to bind to
     @State static var previewSegment = WorkoutSegment.defaultSegment
-
+    
     static var previews: some View {
-        NavigationView { // Embed in NavigationView for title display
+        NavigationView {
             WorkoutSegmentConfigView(segment: $previewSegment)
         }
     }

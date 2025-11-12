@@ -11,7 +11,7 @@ import SwiftUI
 struct RowBuddyApp: App {
     var body: some Scene {
         WindowGroup {
-            WorkoutPlayerView()
+            WorkoutLibraryView()
         }
     }
 }
