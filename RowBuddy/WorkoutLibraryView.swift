@@ -29,11 +29,22 @@ struct WorkoutLibraryView: View {
     @State private var showingWorkoutBuilder = false
     @State private var selectedWorkout: Workout?
     @State private var workoutToEdit: Workout?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+    @State private var showSignOutConfirmation = false
     
     var body: some View {
         NavigationView {
             ZStack {
-                if workouts.isEmpty {
+                if isLoading {
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                        Text("Loading workouts...")
+                            .foregroundColor(.gray)
+                    }
+                } else if workouts.isEmpty {
                     // Empty State
                     VStack(spacing: 20) {
                         Image(systemName: "figure.rowing")
@@ -94,6 +105,13 @@ struct WorkoutLibraryView: View {
             }
             .navigationTitle("Row Buddy")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showSignOutConfirmation = true }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingWorkoutBuilder = true }) {
                         Image(systemName: "plus")
@@ -102,7 +120,7 @@ struct WorkoutLibraryView: View {
                 }
                 
                 if !workouts.isEmpty {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         EditButton()
                     }
                 }
@@ -127,68 +145,112 @@ struct WorkoutLibraryView: View {
                         selectedWorkout = nil
                     }
             }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "An unknown error occurred")
+            }
+            .confirmationDialog("Sign Out?", isPresented: $showSignOutConfirmation, titleVisibility: .visible) {
+                Button("Sign Out", role: .destructive) {
+                    signOut()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to sign out?")
+            }
             .onAppear {
-                loadSampleWorkouts()
+                loadWorkouts()
+            }
+            .refreshable {
+                loadWorkouts()
             }
         }
     }
     
     // MARK: - Workout Management Functions
+    func loadWorkouts() {
+        isLoading = true
+        Task {
+            do {
+                let fetchedWorkouts = try await SupabaseManager.shared.fetchWorkouts()
+                await MainActor.run {
+                    workouts = fetchedWorkouts
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to load workouts: \(error.localizedDescription)"
+                    showError = true
+                    isLoading = false
+                }
+            }
+        }
+    }
+    
     func addWorkout(name: String, segments: [WorkoutSegment]) {
-        let newWorkout = Workout(name: name, segments: segments)
-        workouts.append(newWorkout)
-        // TODO: Save to persistent storage
+        Task {
+            do {
+                _ = try await SupabaseManager.shared.saveWorkout(name: name, segments: segments)
+                // Reload workouts after saving
+                loadWorkouts()
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to save workout: \(error.localizedDescription)"
+                    showError = true
+                }
+            }
+        }
     }
     
     func updateWorkout(_ workout: Workout, name: String, segments: [WorkoutSegment]) {
-        if let index = workouts.firstIndex(where: { $0.id == workout.id }) {
-            workouts[index].name = name
-            workouts[index].segments = segments
-            // TODO: Save to persistent storage
+        Task {
+            do {
+                try await SupabaseManager.shared.updateWorkout(id: workout.id, name: name, segments: segments)
+                // Reload workouts after updating
+                loadWorkouts()
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to update workout: \(error.localizedDescription)"
+                    showError = true
+                }
+            }
         }
     }
     
     func deleteWorkout(_ workout: Workout) {
-        workouts.removeAll { $0.id == workout.id }
-        // TODO: Save to persistent storage
+        Task {
+            do {
+                try await SupabaseManager.shared.deleteWorkout(id: workout.id)
+                // Reload workouts after deleting
+                loadWorkouts()
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to delete workout: \(error.localizedDescription)"
+                    showError = true
+                }
+            }
+        }
     }
     
     func deleteWorkouts(at offsets: IndexSet) {
-        workouts.remove(atOffsets: offsets)
-        // TODO: Save to persistent storage
+        let workoutsToDelete = offsets.map { workouts[$0] }
+        for workout in workoutsToDelete {
+            deleteWorkout(workout)
+        }
     }
     
-    // Load some sample workouts for testing
-    func loadSampleWorkouts() {
-        if workouts.isEmpty {
-            // Add a couple sample workouts
-            let quickWorkout = Workout(
-                name: "Quick 10 Min",
-                segments: [
-                    WorkoutSegment(name: "Warm Up", durationSeconds: 120, targetSPM: 20, goalSplit: "2:10/500m"),
-                    WorkoutSegment(name: "Steady State", durationSeconds: 480, targetSPM: 24, goalSplit: "2:00/500m"),
-                    WorkoutSegment(name: "Cool Down", durationSeconds: 120, targetSPM: 18, goalSplit: "2:15/500m")
-                ]
-            )
-            
-            let intervalWorkout = Workout(
-                name: "5x2min Intervals",
-                segments: [
-                    WorkoutSegment(name: "Warm Up", durationSeconds: 180, targetSPM: 20, goalSplit: "2:10/500m"),
-                    WorkoutSegment(name: "Interval", durationSeconds: 120, targetSPM: 28, goalSplit: "1:45/500m", periodNumber: "1 of 5"),
-                    WorkoutSegment(name: "Rest", durationSeconds: 60, targetSPM: 18, goalSplit: "2:20/500m", periodNumber: "1 of 5"),
-                    WorkoutSegment(name: "Interval", durationSeconds: 120, targetSPM: 28, goalSplit: "1:45/500m", periodNumber: "2 of 5"),
-                    WorkoutSegment(name: "Rest", durationSeconds: 60, targetSPM: 18, goalSplit: "2:20/500m", periodNumber: "2 of 5"),
-                    WorkoutSegment(name: "Interval", durationSeconds: 120, targetSPM: 28, goalSplit: "1:45/500m", periodNumber: "3 of 5"),
-                    WorkoutSegment(name: "Rest", durationSeconds: 60, targetSPM: 18, goalSplit: "2:20/500m", periodNumber: "3 of 5"),
-                    WorkoutSegment(name: "Interval", durationSeconds: 120, targetSPM: 28, goalSplit: "1:45/500m", periodNumber: "4 of 5"),
-                    WorkoutSegment(name: "Rest", durationSeconds: 60, targetSPM: 18, goalSplit: "2:20/500m", periodNumber: "4 of 5"),
-                    WorkoutSegment(name: "Interval", durationSeconds: 120, targetSPM: 28, goalSplit: "1:45/500m", periodNumber: "5 of 5"),
-                    WorkoutSegment(name: "Cool Down", durationSeconds: 180, targetSPM: 18, goalSplit: "2:15/500m")
-                ]
-            )
-            
-            workouts = [quickWorkout, intervalWorkout]
+    func signOut() {
+        Task {
+            do {
+                try await SupabaseManager.shared.signOut()
+                // This will trigger the app to show the auth screen again
+                // You might need to add more navigation logic here
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to sign out: \(error.localizedDescription)"
+                    showError = true
+                }
+            }
         }
     }
 }
@@ -247,12 +309,5 @@ struct WorkoutCardView: View {
             return "\(mins)min"
         }
         return String(format: "%d:%02d", mins, secs)
-    }
-}
-
-// MARK: - Preview
-struct WorkoutLibraryView_Previews: PreviewProvider {
-    static var previews: some View {
-        WorkoutLibraryView()
     }
 }
