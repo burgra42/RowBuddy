@@ -25,6 +25,7 @@ struct Workout: Identifiable, Codable {
 
 // MARK: - Workout Library View
 struct WorkoutLibraryView: View {
+    @ObservedObject private var settings = AppSettings.shared
     @State private var workouts: [Workout] = []
     @State private var showingWorkoutBuilder = false
     @State private var selectedWorkout: Workout?
@@ -33,6 +34,7 @@ struct WorkoutLibraryView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showSettings = false
+    @State private var editMode: EditMode = .inactive
     
     var onSignOut: () -> Void
     
@@ -84,7 +86,13 @@ struct WorkoutLibraryView: View {
                             WorkoutCardView(workout: workout)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    selectedWorkout = workout
+                                    if editMode == .active {
+                                        // In edit mode, tap to edit
+                                        workoutToEdit = workout
+                                    } else {
+                                        // Normal mode, tap to start
+                                        selectedWorkout = workout
+                                    }
                                 }
                                 .contextMenu {
                                     Button(action: { workoutToEdit = workout }) {
@@ -103,6 +111,7 @@ struct WorkoutLibraryView: View {
                         .onDelete(perform: deleteWorkouts)
                     }
                     .listStyle(InsetGroupedListStyle())
+                    .environment(\.editMode, $editMode)
                 }
             }
             .navigationTitle("Row Buddy")
@@ -123,7 +132,11 @@ struct WorkoutLibraryView: View {
                 
                 if !workouts.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        EditButton()
+                        Button(editMode == .active ? "Done" : "Edit") {
+                            withAnimation {
+                                editMode = editMode == .active ? .inactive : .active
+                            }
+                        }
                     }
                 }
             }
@@ -135,6 +148,7 @@ struct WorkoutLibraryView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView(onSignOut: {
                     signOut()
+                    onSignOut()
                 })
             }
             .sheet(item: $workoutToEdit) { workout in
@@ -257,6 +271,7 @@ struct WorkoutLibraryView: View {
 // MARK: - Workout Card View
 struct WorkoutCardView: View {
     let workout: Workout
+    var onPlay: (() -> Void)?
     
     var body: some View {
         HStack {
@@ -291,12 +306,14 @@ struct WorkoutCardView: View {
             Spacer()
             
             // Play button
-            Button(action: {}) {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.blue)
+            if let onPlay = onPlay {
+                Button(action: onPlay) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(BorderlessButtonStyle())
             }
-            .buttonStyle(BorderlessButtonStyle())
         }
         .padding(.vertical, 8)
     }

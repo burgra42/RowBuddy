@@ -13,6 +13,21 @@ struct WorkoutSegmentConfigView: View {
         segment.durationSeconds % 60
     }
     
+    // Break goal split into minutes and seconds (format: "M:SS/500m")
+    private var splitMinutes: Int {
+        let components = segment.goalSplit.components(separatedBy: ":")
+        return Int(components.first ?? "2") ?? 2
+    }
+    
+    private var splitSeconds: Int {
+        let components = segment.goalSplit.components(separatedBy: ":")
+        if components.count > 1 {
+            let secondsPart = components[1].replacingOccurrences(of: "/500m", with: "")
+            return Int(secondsPart) ?? 0
+        }
+        return 0
+    }
+    
     var body: some View {
         Form {
             Section(header: Text("Segment Details").font(.headline)) {
@@ -78,7 +93,51 @@ struct WorkoutSegmentConfigView: View {
                     .frame(height: 120)
                 }
                 
-                TextField("Goal Split (e.g., 1:55/500m)", text: $segment.goalSplit)
+                // Goal Split Picker (1:30 to 3:30 per 500m)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Goal Split:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        // Minutes picker (1-3)
+                        Picker("Minutes", selection: Binding(
+                            get: { splitMinutes },
+                            set: { newMinutes in
+                                segment.goalSplit = String(format: "%d:%02d/500m", newMinutes, splitSeconds)
+                            }
+                        )) {
+                            ForEach(1...3, id: \.self) { minute in
+                                Text("\(minute)").tag(minute)
+                            }
+                        }
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(width: 60)
+                        .clipped()
+                        
+                        Text(":")
+                            .font(.title2)
+                        
+                        // Seconds picker (00-59)
+                        Picker("Seconds", selection: Binding(
+                            get: { splitSeconds },
+                            set: { newSeconds in
+                                segment.goalSplit = String(format: "%d:%02d/500m", splitMinutes, newSeconds)
+                            }
+                        )) {
+                            ForEach(0..<60, id: \.self) { second in
+                                Text(String(format: "%02d", second)).tag(second)
+                            }
+                        }
+                        .pickerStyle(WheelPickerStyle())
+                        .frame(width: 80)
+                        .clipped()
+                        
+                        Text("/500m")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 TextField("Period Number (e.g., 2 of 5)", text: $segment.periodNumber)
             }

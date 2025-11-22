@@ -4,6 +4,8 @@ struct WorkoutPlayerView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.verticalSizeClass) var verticalSizeClass
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.colorScheme) var systemColorScheme
+    @ObservedObject private var settings = AppSettings.shared
     
     // MARK: - Workout Data
     let segments: [WorkoutSegment]
@@ -36,6 +38,30 @@ struct WorkoutPlayerView: View {
     
     private var isPortrait: Bool {
         verticalSizeClass == .regular && horizontalSizeClass == .compact
+    }
+    
+    private var timerColor: Color {
+        switch settings.timerColorScheme {
+        case "green": return .green
+        case "purple": return .purple
+        default: return .blue
+        }
+    }
+    
+    private var backgroundColor: Color {
+        systemColorScheme == .dark ? Color.black : Color.white
+    }
+    
+    private var primaryTextColor: Color {
+        systemColorScheme == .dark ? Color.white : Color.black
+    }
+    
+    private var secondaryTextColor: Color {
+        systemColorScheme == .dark ? Color.gray : Color.gray
+    }
+    
+    private var circleBackgroundColor: Color {
+        systemColorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1)
     }
     
     // MARK: - Initializer
@@ -98,19 +124,19 @@ struct WorkoutPlayerView: View {
                 if let segment = currentSegment {
                     Text(segment.name)
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(primaryTextColor)
                     
                     if !segment.periodNumber.isEmpty {
                         Text(segment.periodNumber)
                             .font(.title3)
-                            .foregroundColor(.gray)
+                            .foregroundColor(secondaryTextColor)
                     }
                     
                     HStack(spacing: 30) {
                         VStack {
                             Text("TARGET SPM")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(secondaryTextColor)
                             Text("\(segment.targetSPM)")
                                 .font(.system(size: 28, weight: .bold))
                                 .foregroundColor(.yellow)
@@ -119,7 +145,7 @@ struct WorkoutPlayerView: View {
                         VStack {
                             Text("GOAL SPLIT")
                                 .font(.caption)
-                                .foregroundColor(.gray)
+                                .foregroundColor(secondaryTextColor)
                             Text(segment.goalSplit)
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(.green)
@@ -143,12 +169,12 @@ struct WorkoutPlayerView: View {
                 // Main interval circle
                 ZStack {
                     Circle()
-                        .stroke(Color.white.opacity(0.2), lineWidth: 40)
+                        .stroke(circleBackgroundColor, lineWidth: 40)
                     
                     Circle()
                         .trim(from: 0.0, to: currentIntervalProgress)
                         .stroke(
-                            currentIntervalProgress > 0.1 ? Color.blue : Color.red,
+                            currentIntervalProgress > 0.1 ? timerColor : Color.red,
                             style: StrokeStyle(lineWidth: 35, lineCap: .butt)
                         )
                         .rotationEffect(.degrees(-90))
@@ -207,7 +233,7 @@ struct WorkoutPlayerView: View {
             .padding(.bottom, 40)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.ignoresSafeArea())
+        .background(backgroundColor.ignoresSafeArea())
     }
     
     // MARK: - Landscape Layout
@@ -224,7 +250,7 @@ struct WorkoutPlayerView: View {
                         if !segment.periodNumber.isEmpty {
                             Text("Period: \(segment.periodNumber)")
                                 .font(.title3)
-                                .foregroundColor(.gray)
+                                .foregroundColor(secondaryTextColor)
                                 .padding(.bottom, 5)
                         }
                         
@@ -256,12 +282,12 @@ struct WorkoutPlayerView: View {
                 ZStack {
                     ZStack {
                         Circle()
-                            .stroke(Color.white.opacity(0.2), lineWidth: 100)
+                            .stroke(circleBackgroundColor, lineWidth: 100)
                         
                         Circle()
                             .trim(from: 0.0, to: currentIntervalProgress)
                             .stroke(
-                                currentIntervalProgress > 0.1 ? Color.blue : Color.red,
+                                currentIntervalProgress > 0.1 ? timerColor : Color.red,
                                 style: StrokeStyle(lineWidth: 70, lineCap: .butt)
                             )
                             .rotationEffect(.degrees(-90))
@@ -270,7 +296,7 @@ struct WorkoutPlayerView: View {
                         if let countdown = countdownValue {
                             Text("\(countdown)")
                                 .font(.system(size: 80, weight: .black, design: .rounded))
-                                .foregroundColor(countdown <= 3 ? .red : .white)
+                                .foregroundColor(.red) // Always red for urgency
                                 .transition(.opacity)
                         } else if isWorkoutComplete {
                             Text("✓")
@@ -336,8 +362,8 @@ struct WorkoutPlayerView: View {
                 .padding(.trailing)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.black.edgesIgnoringSafeArea(.all))
-            .foregroundColor(.white)
+            .background(backgroundColor.edgesIgnoringSafeArea(.all))
+            .foregroundColor(primaryTextColor)
         }
     }
     
@@ -345,8 +371,8 @@ struct WorkoutPlayerView: View {
     func spmCircle(size: CGFloat) -> some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.3), lineWidth: size * 0.1)
-                .background(Circle().fill(Color.yellow.opacity(0.1)))
+                .stroke(secondaryTextColor.opacity(0.5), lineWidth: size * 0.1)
+                .background(Circle().fill(Color.yellow.opacity(0.15)))
             
             if let segment = currentSegment, segment.targetSPM > 0 {
                 Circle()
@@ -361,7 +387,7 @@ struct WorkoutPlayerView: View {
             Text("SPM")
                 .font(.system(size: size * 0.15))
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundColor(primaryTextColor)
         }
         .frame(width: size, height: size)
     }

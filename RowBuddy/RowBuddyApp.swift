@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct RowBuddyApp: App {
-    @StateObject private var settings = AppSettings.shared
+    @ObservedObject private var settings = AppSettings.shared
     
     var body: some Scene {
         WindowGroup {
