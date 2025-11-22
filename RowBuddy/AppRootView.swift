@@ -27,7 +27,9 @@ struct RootView: View {
                 }
             } else if isAuthenticated {
                 // Main app
-                WorkoutLibraryView()
+                WorkoutLibraryView(onSignOut: {
+                    handleSignOut()
+                })
             } else {
                 // Authentication screen
                 AuthenticationView(onAuthenticated: {
@@ -56,5 +58,10 @@ struct RootView: View {
                 }
             }
         }
+    }
+    
+    func handleSignOut() {
+        // Set authenticated to false to show login screen
+        isAuthenticated = false
     }
 }

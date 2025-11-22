@@ -32,7 +32,9 @@ struct WorkoutLibraryView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showError = false
-    @State private var showSignOutConfirmation = false
+    @State private var showSettings = false
+    
+    var onSignOut: () -> Void
     
     var body: some View {
         NavigationView {
@@ -106,9 +108,9 @@ struct WorkoutLibraryView: View {
             .navigationTitle("Row Buddy")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showSignOutConfirmation = true }) {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .foregroundColor(.red)
+                    Button(action: { showSettings = true }) {
+                        Image(systemName: "gear")
+                            .font(.title3)
                     }
                 }
                 
@@ -130,6 +132,11 @@ struct WorkoutLibraryView: View {
                     addWorkout(name: name, segments: segments)
                 })
             }
+            .sheet(isPresented: $showSettings) {
+                SettingsView(onSignOut: {
+                    signOut()
+                })
+            }
             .sheet(item: $workoutToEdit) { workout in
                 WorkoutBuilderView(
                     workoutName: workout.name,
@@ -149,14 +156,6 @@ struct WorkoutLibraryView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage ?? "An unknown error occurred")
-            }
-            .confirmationDialog("Sign Out?", isPresented: $showSignOutConfirmation, titleVisibility: .visible) {
-                Button("Sign Out", role: .destructive) {
-                    signOut()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Are you sure you want to sign out?")
             }
             .onAppear {
                 loadWorkouts()
